@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  mailboxes Mailbox[]
+  domains   Domain[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Domain {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  domainName    String    @unique
+  spfStatus     String?   @default("PENDING")
+  dkimStatus    String?   @default("PENDING")
+  dmarcStatus   String?   @default("PENDING")
+  mxStatus      String?   @default("PENDING")
+  healthStatus  String    @default("UNKNOWN")
+  lastCheckedAt DateTime?
+  mailboxes     Mailbox[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Mailbox {
+  id                     String            @id @default(uuid())
+  userId                 String
+  user                   User              @relation(fields: [userId], references: [id])
+  domainId               String
+  domain                 Domain            @relation(fields: [domainId], references: [id])
+  email                  String            @unique
+  smtpHost               String
+  smtpPort               Int
+  smtpUsername           String
+  encryptedSmtpPassword  String
+  warmupStatus           String            @default("PAUSED")
+  currentWarmupDay       Int               @default(1)
+  dailyLimit             Int               @default(5)
+  warmupCampaign         WarmupCampaign?
+  activities             WarmupActivity[]
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+}
+
+model WarmupCampaign {
+  id                String   @id @default(uuid())
+  mailboxId         String   @unique
+  mailbox           Mailbox  @relation(fields: [mailboxId], references: [id])
+  startingVolume    Int      @default(5)
+  dailyIncrement    Int      @default(3)
+  maxDailyVolume    Int      @default(50)
+  status            String   @default("ACTIVE")
+  lastExecutedAt    DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model WarmupActivity {
+  id             String   @id @default(uuid())
+  mailboxId      String
+  mailbox        Mailbox  @relation(fields: [mailboxId], references: [id])
+  activityType   String   // EMAIL_SENT, SMTP_FAILURE, BOUNCE_WARNING, SPAM_WARNING, WARMUP_STARTED
+  status         String   // SUCCESS, FAILED, WARNING
+  message        String?
+  recipientEmail String?
+  createdAt      DateTime @default(now())
+}
