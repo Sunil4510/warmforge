@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+*.log
+package-lock.json
+.prisma
+/apps/backend/dist
+/apps/frontend/dist
+/apps/frontend/node_modules
+/apps/backend/node_modules
+.DS_Store
