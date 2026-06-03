@@ -1,11 +1,12 @@
 import crypto from 'crypto';
+import { config } from '../config/env';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 
 export class EncryptionUtil {
-  private static readonly key = process.env.ENCRYPTION_KEY;
+  private static readonly key = config.encryptionKey;
 
   public static encrypt(text: string): string {
     if (!this.key || this.key.length !== 32) {

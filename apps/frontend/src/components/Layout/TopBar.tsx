@@ -27,7 +27,6 @@ const TopBar = () => {
           </Typography>
           <Box>
             <Button component={RouterLink} to="/" color="inherit">Dashboard</Button>
-            <Button color="primary" variant="contained" sx={{ ml: 2 }}>Documentation</Button>
           </Box>
         </Toolbar>
       </Container>

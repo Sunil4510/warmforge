@@ -6,8 +6,8 @@ export class WarmupScheduler {
    * Initialize the daily warmup scheduler
    */
   public static init() {
-    // Run daily at midnight (00:00)
-    cron.schedule('0 0 * * *', async () => {
+    // Run at 12:05 PM (12:05) for testing
+    cron.schedule('5 12 * * *', async () => {
       console.log(`[Scheduler] Starting scheduled warmup run at ${new Date().toISOString()}`);
       try {
         await WarmupService.runAllActiveWarmups();
@@ -17,6 +17,6 @@ export class WarmupScheduler {
       }
     });
 
-    console.log('[Scheduler] Warmup Scheduler Initialized (Daily at 00:00)');
+    console.log('[Scheduler] Warmup Scheduler Initialized (Run scheduled for 12:05 PM)');
   }
 }

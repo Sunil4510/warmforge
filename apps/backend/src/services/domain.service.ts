@@ -1,5 +1,6 @@
 import { prisma } from './prisma.service';
 import { DnsService } from './dns.service';
+import { AppError } from '../errors/app.error';
 
 export class DomainService {
   public static async validateDomainHealth(domainId: string) {
@@ -8,7 +9,7 @@ export class DomainService {
     });
 
     if (!domain) {
-      throw new Error('Domain not found');
+      throw new AppError('Domain not found', 404);
     }
 
     const dnsResults = await DnsService.validateDomain(domain.domainName);
@@ -40,11 +41,17 @@ export class DomainService {
   }
 
   public static async getDomainById(domainId: string) {
-    return await prisma.domain.findUnique({
+    const domain = await prisma.domain.findUnique({
       where: { id: domainId },
       include: {
         mailboxes: true,
       },
     });
+
+    if (!domain) {
+      throw new AppError('Domain not found', 404);
+    }
+
+    return domain;
   }
 }

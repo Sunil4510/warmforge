@@ -1,16 +1,18 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { prisma } from './services/prisma.service';
-import { mailboxRoutes } from './modules/mailbox.routes';
-import { domainRoutes } from './modules/domain.routes';
+import { mailboxRoutes } from './routes/mailbox.routes';
+import { domainRoutes } from './routes/domain.routes';
 import { WarmupScheduler } from './scheduler/warmup.scheduler';
+import { errorMiddleware } from './middleware/error.middleware';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
@@ -18,9 +20,13 @@ app.use(express.json());
 app.use('/api/v1/mailboxes', mailboxRoutes);
 app.use('/api/v1/domains', domainRoutes);
 
-app.get('/health', (req, res) => {
+// Health Check
+app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+// Global Error Handler
+app.use(errorMiddleware);
 
 async function startServer() {
   try {

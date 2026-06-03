@@ -1,4 +1,6 @@
-import { promises as dns } from 'dns';
+import Tangerine from 'tangerine';
+
+const resolver = new Tangerine();
 
 export interface DnsValidationResult {
   mx: boolean;
@@ -15,7 +17,7 @@ export class DnsService {
       this.checkDMARC(domain),
       this.checkDKIM(domain),
     ]);
-
+    console.log(`[DNS Service] Validation results for ${domain}:`, results);
     return {
       mx: results[0].status === 'fulfilled' && (results[0] as PromiseFulfilledResult<boolean>).value,
       spf: results[1].status === 'fulfilled' && (results[1] as PromiseFulfilledResult<boolean>).value,
@@ -26,7 +28,7 @@ export class DnsService {
 
   private static async checkMX(domain: string): Promise<boolean> {
     try {
-      const records = await dns.resolveMx(domain);
+      const records = await resolver.resolveMx(domain);
       return records.length > 0;
     } catch {
       return false;
@@ -35,35 +37,38 @@ export class DnsService {
 
   private static async checkSPF(domain: string): Promise<boolean> {
     try {
-      const records = await dns.resolveTxt(domain);
-      return records.some((txt) => txt.some((s) => s.startsWith('v=spf1')));
-    } catch {
+      const records = await resolver.resolveTxt(domain);
+      // Scan all record sets and all strings within them
+      return records.some((txtSet: string[]) => 
+        txtSet.some((record: string) => record.toLowerCase().includes('v=spf1'))
+      );
+    } catch (e) {
       return false;
     }
   }
 
   private static async checkDMARC(domain: string): Promise<boolean> {
     try {
-      const records = await dns.resolveTxt(`_dmarc.${domain}`);
-      return records.some((txt) => txt.some((s) => s.startsWith('v=DMARC1')));
-    } catch {
+      const records = await resolver.resolveTxt(`_dmarc.${domain}`);
+      return records.some((txtSet: string[]) => 
+        txtSet.some((record: string) => record.toUpperCase().includes('V=DMARC1'))
+      );
+    } catch (e) {
       return false;
     }
   }
 
   private static async checkDKIM(domain: string): Promise<boolean> {
-    try {
-      // Checking a common selector for MVP. In production, this might need dynamic selectors.
-      const records = await dns.resolveTxt(`default._domainkey.${domain}`);
-      return records.length > 0;
-    } catch {
-      // Also try 'google' as a common selector
+    const selectors = ['google', 'default', 'mandrill', 'k1', 'mail'];
+    
+    for (const selector of selectors) {
       try {
-        const googleRecords = await dns.resolveTxt(`google._domainkey.${domain}`);
-        return googleRecords.length > 0;
+        const records = await resolver.resolveTxt(`${selector}._domainkey.${domain}`);
+        if (records.length > 0) return true;
       } catch {
-        return false;
+        continue;
       }
     }
+    return false;
   }
 }

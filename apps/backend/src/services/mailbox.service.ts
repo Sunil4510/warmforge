@@ -2,6 +2,7 @@ import { prisma } from './prisma.service';
 import { SmtpService, SmtpConfig } from './smtp.service';
 import { EncryptionUtil } from '../utils/encryption';
 import { DomainService } from './domain.service';
+import { AppError } from '../errors/app.error';
 
 export interface CreateMailboxDto {
   userId: string;
@@ -26,13 +27,13 @@ export class MailboxService {
 
     const isValid = await SmtpService.verifyConnection(smtpConfig);
     if (!isValid) {
-      throw new Error('SMTP connection verification failed.');
+      throw new AppError('SMTP connection verification failed. Please check your credentials.', 401);
     }
 
     // 2. Extract Domain
     const domainName = dto.email.split('@')[1];
     if (!domainName) {
-      throw new Error('Invalid email address format.');
+      throw new AppError('Invalid email address format.');
     }
 
     // 3. Encrypt Password
@@ -40,6 +41,17 @@ export class MailboxService {
 
     // 4. Persistence (Transactional)
     const result = await prisma.$transaction(async (tx) => {
+      // Ensure mock user exists for MVP
+      await tx.user.upsert({
+        where: { id: dto.userId },
+        update: {},
+        create: {
+          id: dto.userId,
+          name: 'Demo User',
+          email: 'demo@warmforge.test',
+        },
+      });
+
       // Find or create domain
       let domain = await tx.domain.findUnique({
         where: { domainName },
@@ -90,7 +102,9 @@ export class MailboxService {
     });
 
     // 5. Async Trigger Domain Health Check
-    DomainService.validateDomainHealth(result.domain.id).catch(console.error);
+    DomainService.validateDomainHealth(result.domain.id).catch(err => {
+      console.error(`Domain health check failed for ${result.domain.domainName}:`, err.message);
+    });
 
     return result;
   }
@@ -102,20 +116,27 @@ export class MailboxService {
         domain: true,
         warmupCampaign: true,
       },
+      orderBy: { createdAt: 'desc' }
     });
   }
 
   public static async getMailboxDetail(id: string) {
-    return await prisma.mailbox.findUnique({
+    const mailbox = await prisma.mailbox.findUnique({
       where: { id },
       include: {
         domain: true,
         warmupCampaign: true,
         activities: {
           orderBy: { createdAt: 'desc' },
-          take: 20,
+          take: 50,
         },
       },
     });
+
+    if (!mailbox) {
+      throw new AppError('Mailbox not found', 404);
+    }
+
+    return mailbox;
   }
 }

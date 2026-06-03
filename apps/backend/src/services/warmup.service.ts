@@ -1,9 +1,11 @@
 import { prisma } from './prisma.service';
 import { SmtpService, SmtpConfig } from './smtp.service';
 import { EncryptionUtil } from '../utils/encryption';
+import { config } from '../config/env';
+import { AppError } from '../errors/app.error';
 
 export class WarmupService {
-  private static readonly SEED_LIST = (process.env.SEED_LIST || '').split(',').filter(e => e.length > 0);
+  private static readonly SEED_LIST = config.seedList;
 
   public static async executeWarmupRun(mailboxId: string) {
     const mailbox = await prisma.mailbox.findUnique({
@@ -12,7 +14,7 @@ export class WarmupService {
     });
 
     if (!mailbox || !mailbox.warmupCampaign || mailbox.warmupStatus !== 'ACTIVE') {
-      return { success: false, error: 'Mailbox or active campaign not found' };
+      throw new AppError('Mailbox or active campaign not found', 404);
     }
 
     const campaign = mailbox.warmupCampaign;
@@ -34,7 +36,6 @@ export class WarmupService {
     };
 
     // 3. Dispatch Emails (to Seed List)
-    // For MVP, we send targetVolume emails distributed across the seed list
     let sentCount = 0;
     let failCount = 0;
 
@@ -109,8 +110,13 @@ export class WarmupService {
 
     const results = [];
     for (const mailbox of activeMailboxes) {
-      const res = await this.executeWarmupRun(mailbox.id);
-      results.push({ mailboxId: mailbox.id, ...res });
+      try {
+        const res = await this.executeWarmupRun(mailbox.id);
+        results.push({ mailboxId: mailbox.id, ...res });
+      } catch (error: any) {
+        console.error(`Warmup failed for ${mailbox.id}:`, error.message);
+        results.push({ mailboxId: mailbox.id, success: false, error: error.message });
+      }
     }
 
     return results;

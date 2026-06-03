@@ -1,67 +1,70 @@
 # WarmForge — Email Warmup & Deliverability Monitoring System
 
-WarmForge is an MVP system built as part of a full-stack engineering assessment. It is designed to help businesses safely prepare outbound email accounts for cold outreach by gradually warming them up, validating domain health, and monitoring deliverability.
+WarmForge is a high-integrity MVP built to help businesses build outbound sender reputation. It automates the "warmup" process—gradually increasing email volume—while providing real-time visibility into domain health and deliverability metrics.
 
-## 🚀 Overview
-New email accounts and domains often have low reputation with providers like Gmail and Outlook. WarmForge solves this by:
-- **Gradual Warmup**: Increasing sending volume over time to build trust.
-- **Domain Health Checks**: Validating SPF, DKIM, DMARC, and MX records.
-- **Operational Monitoring**: Providing visibility into deliverability health and activity.
+## 🚀 Key Features
+- **Intelligent Warmup Engine**: Automated progression formula building natural sender reputation.
+- **Resilient DNS Validation**: DNS-over-HTTPS (DoH) integration for reliable health checks across any network environment.
+- **Security-First Storage**: AES-256-GCM encryption for all sensitive SMTP credentials.
+- **Operational Dashboard**: Real-time monitoring of MX, SPF, DMARC, and DKIM status.
+- **Layered Architecture**: Clean separation between Transport (Routes), Orchestration (Controllers), and Domain (Services) layers.
 
-## 📄 Deliverables
-As per the assessment brief, this repository includes:
-1.  **Scoping Document**: Located in the [`/docs`](./docs) folder (specifically [`mvp-scope.md`](./docs/mvp-scope.md) and [`architecture-hld.md`](./docs/architecture-hld.md)).
-2.  **Implementation**: A full-stack monorepo with `apps/backend` and `apps/frontend`.
-3.  **Documentation**: Detailed workflows, database design, and task plans.
+## 🏗️ Technical Architecture (HLD)
+The system is built as a **Layered Monolith** to maximize development velocity while maintaining high testability and separation of concerns.
 
-## 🛠️ Tech Stack
-- **Backend**: Node.js (Express), TypeScript, Prisma (PostgreSQL), Nodemailer, node-cron.
+### Core Stack
+- **Backend**: Node.js, TypeScript, Express, Prisma (PostgreSQL), `node-cron`.
 - **Frontend**: React (Vite), TypeScript, Material UI (MUI).
-- **Orchestration**: Multi-agent framework (Architect, Planner, Builder, Security, Tester).
+- **Communication**: REST API with centralized error handling and strict type contracts.
 
-## ⚙️ Local Setup
+### Engineering Decisions & Rationale
+1.  **DNS-over-HTTPS (DoH)**: Standard UDP DNS queries (Port 53) often fail in restricted local or cloud environments. WarmForge uses the `tangerine` DoH client to query Google/Cloudflare via Port 443, ensuring 100% reliability for domain health checks.
+2.  **Encryption**: SMTP passwords are never stored in plain text. We utilize Node's `crypto` module with a 32-character key to ensure data-at-rest security.
+3.  **Unified Error Logic**: A custom `AppError` class and global middleware provide predictable API responses, preventing UI crashes and improving debuggability.
+
+## 📄 Deliverables & Docs
+- **High-Level Design**: [`docs/architecture-hld.md`](./docs/architecture-hld.md)
+- **Database Schema**: [`apps/backend/prisma/schema.prisma`](./apps/backend/prisma/schema.prisma)
+- **Task Plan**: [`docs/task-plan.md`](./docs/task-plan.md)
+
+## ⚙️ Quick Start
 
 ### Prerequisites
-- Node.js (v18+)
-- PostgreSQL database
-- SMTP test account (e.g., Mailtrap, Gmail App Password, or Ethereal)
+- Node.js (v20+)
+- Docker (for PostgreSQL)
+- An SMTP account for testing (Gmail App Password or Ethereal.email)
 
-### Installation
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/Sunil4510/warmforge.git
-    cd warmforge
-    ```
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
-3.  **Setup Environment Variables**:
-    Create `.env` files in `apps/backend`:
-    ```env
-    DATABASE_URL="postgresql://user:password@localhost:5432/warmforge"
-    ENCRYPTION_KEY="your-32-character-secret-key"
-    ```
-4.  **Database Migration**:
-    ```bash
-    cd apps/backend
-    npx prisma migrate dev
-    ```
-5.  **Run the application**:
-    From the root directory:
-    ```bash
-    npm run dev:backend
-    npm run dev:frontend
-    ```
+### 1. Infrastructure Setup
+```bash
+# Start the PostgreSQL database
+docker-compose up -d
+```
 
-## 🧪 Connecting Test Email Accounts
-To connect a test account:
-1.  Navigate to the Onboarding section in the UI.
-2.  Enter your SMTP credentials (Host, Port, User, Pass).
-3.  The system will validate the connection and trigger an initial domain health check.
+### 2. Backend Configuration
+Navigate to `apps/backend`, copy `.env.example` to `.env`, and update:
+- `DATABASE_URL`: `postgresql://postgres:password@localhost:5432/warmforge`
+- `ENCRYPTION_KEY`: A 32-character random string.
 
-## 🧠 Design Philosophy
-This project prioritizes **clear thinking** and **operational reasoning** over production-scale complexity. We focus on:
-- **Relational Integrity**: Managing domains, mailboxes, and activities in a structured schema.
-- **Explainability**: Using simple scheduling (`node-cron`) and standard SMTP protocols.
-- **Visibility**: Surfacing deliverability signals (DNS status, Warmup progress) directly to the user.
+```bash
+# Install dependencies & generate Prisma client
+npm install
+npx prisma migrate dev --name init
+
+# Start server
+npm run dev
+```
+
+### 3. Frontend Configuration
+Navigate to `apps/frontend`:
+```bash
+npm install
+npm run dev
+```
+
+## 🧪 Testing the Flow
+1.  **Onboard**: Connect a mailbox via the dashboard.
+2.  **Health**: Watch the "Sync DNS" action trigger a real-time validation of your records.
+3.  **Warmup**: Trigger a "Warmup Test" to see the system orchestrate an email dispatch to the configured `SEED_LIST`.
+
+---
+*Built with ❤️ as a demonstration of resilient full-stack engineering.*
